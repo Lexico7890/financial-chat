@@ -1,0 +1,3 @@
+[submodule "financial-frontend"]
+	path = financial-frontend
+	url = https://github.com/Lexico7890/financial-frontend.git
