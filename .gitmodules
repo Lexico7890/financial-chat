@@ -4,3 +4,6 @@
 [submodule "financial-backend"]
 	path = financial-backend
 	url = https://github.com/Lexico7890/financial-backend.git
+[submodule "financial-ml"]
+	path = financial-ml
+	url = https://github.com/Lexico7890/financial-ml.git
