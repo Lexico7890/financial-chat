@@ -1,0 +1,12 @@
+services:
+  ingestion:
+    build:
+      context: .
+      dockerfile: financial-ml/ingestion/Dockerfile
+    container_name: ingestion-job
+    env_file: .env
+    volumes:
+      - ./financial-ml/vector-store:/app/vector-store
+      - ./financial-ml/ingestion:/app  # Cambia esto!
+    working_dir: /app
+    command: ["python", "process_s3_documents.py"]  # -u para logs sin buffering
