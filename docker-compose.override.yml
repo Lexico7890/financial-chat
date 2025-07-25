@@ -1,6 +1,3 @@
-# docker-compose.override.yml
-version: '3.8'
-
 services:
   ingestion:
     # Límites para desarrollo local
@@ -16,5 +13,5 @@ services:
     # Variables de entorno para desarrollo
     environment:
       - DEBUG=true
-      - MAX_WORKERS=4
-      - BATCH_SIZE=30
+      - MAX_WORKERS=7
+      - BATCH_SIZE=7
