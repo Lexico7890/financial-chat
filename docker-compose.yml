@@ -1,26 +1,22 @@
+
 services:
-  # Base de datos vectorial ChromaDB
+  # ChromaDB simplificado
   chromadb:
     image: chromadb/chroma:latest
     container_name: financial-chromadb
     ports:
       - "8001:8000"
-    volumes:
-      - chromadb_data:/chroma/chroma
-      - ./chroma_config:/chroma/config
     environment:
       - CHROMA_SERVER_HOST=0.0.0.0
       - CHROMA_SERVER_HTTP_PORT=8000
       - PERSIST_DIRECTORY=/chroma/chroma
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    # Sin healthcheck para debugging
     networks:
       - financial-network
 
-  # Servicio de ingesta de documentos
+  # Ingestion simplificado
   ingestion:
     build:
       context: .
@@ -31,22 +27,15 @@ services:
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
       - PYTHONPATH=/app
-    volumes:
-      - ./financial-ml:/app/financial-ml
-      - ./data:/app/data
-      - chromadb_data:/app/chroma_db
     working_dir: /app
     command: ["python", "-u", "financial-ml/ingestion/process_s3_documents.py"]
     depends_on:
-      chromadb:
-        condition: service_healthy
+      - chromadb
     networks:
       - financial-network
-    restart: "no"  # Solo ejecuta una vez
-    profiles:
-      - ingestion  # Perfil para ejecutar solo cuando sea necesario
+    restart: "no"
 
-  # Backend API (FastAPI)
+  # Backend simplificado
   backend:
     build:
       context: .
@@ -60,26 +49,13 @@ services:
       - CHROMA_PORT=8000
       - CHROMA_DB_PATH=/app/chroma_db
       - PYTHONPATH=/app
-      - ENVIRONMENT=production
-    volumes:
-      - ./financial-backend:/app/financial-backend
-      - ./financial-ml:/app/financial-ml
-      - chromadb_data:/app/chroma_db
     working_dir: /app
     command: ["uvicorn", "financial-backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     depends_on:
-      chromadb:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - chromadb
     networks:
       - financial-network
-    restart: unless-stopped
 
-  # Frontend (React)
   frontend:
     build:
       context: ./financial-frontend
@@ -90,72 +66,38 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:8000
       - REACT_APP_ENVIRONMENT=production
-    volumes:
-      - ./financial-frontend/src:/app/src
-      - ./financial-frontend/public:/app/public
-      - /app/node_modules  # Volumen anónimo para node_modules
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - financial-network
-    restart: unless-stopped
-    profiles:
-      - frontend
-
-  # Nginx como reverse proxy (opcional)
-  nginx:
-    image: nginx:alpine
-    container_name: financial-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
     depends_on:
       - backend
+      - chromadb
+    networks:
+      - financial-network
+    restart: unless-stopped
+    profiles:
       - frontend
-    networks:
-      - financial-network
-    restart: unless-stopped
-    profiles:
-      - production
 
-  # Redis para caché (opcional)
-  redis:
-    image: redis:7-alpine
-    container_name: financial-redis
+  # Worker simplificado
+  worker:
+    build:
+      context: .
+      dockerfile: ./financial-ml/query_worker/Dockerfile
+    container_name: financial-worker
     ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    networks:
-      - financial-network
-    restart: unless-stopped
-    profiles:
-      - cache
-
-  # Servicio para monitoreo de logs
-  logs:
-    image: grafana/promtail:latest
-    container_name: financial-logs
-    volumes:
-      - /var/log:/var/log:ro
-      - ./monitoring/promtail.yml:/etc/promtail/config.yml
-    command: -config.file=/etc/promtail/config.yml
-    networks:
-      - financial-network
-    profiles:
-      - monitoring
+      - "5000:5000"
+    env_file: .env
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - PYTHONPATH=/app
 
 volumes:
+  # Volumen principal de ChromaDB - aquí se almacenan todas las bases de datos vectoriales
   chromadb_data:
     driver: local
-  redis_data:
-    driver: local
-
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/chromadb_data
+     
 networks:
   financial-network:
     driver: bridge
