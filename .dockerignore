@@ -1,0 +1,9 @@
+# Ignorar node_modules en todo el proyecto
+**/node_modules
+**/.pnpm
+**/.turbo
+**/.next
+**/dist
+**/.env
+**/__pycache__/
+**/.DS_Store
